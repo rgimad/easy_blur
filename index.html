@@ -216,11 +216,35 @@
     }
 
     async function copyToClipboard() {
-        canvas.toBlob(blob => {
-            navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
-            alert('Изображение в буфере!');
-        });
+        try {
+            // Проверка поддержки API
+            if (!typeof ClipboardItem !== "undefined") {
+                alert("Ваш браузер не поддерживает современный Clipboard API");
+                return;
+            }
+
+            // В Safari важно передавать Promise прямо в ClipboardItem, 
+            // чтобы не разрывать контекст пользовательского клика
+            const item = new ClipboardItem({
+                "image/png": new Promise((resolve) => {
+                    canvas.toBlob((blob) => resolve(blob), "image/png");
+                }),
+            });
+
+            await navigator.clipboard.write([item]);
+            
+            // Красивое уведомление на кнопке
+            const btn = event.currentTarget || document.activeElement;
+            const oldText = btn.innerText;
+            btn.innerText = "Скопировано! ✅";
+            setTimeout(() => btn.innerText = oldText, 2000);
+
+        } catch (err) {
+            console.error("Ошибка копирования:", err);
+            alert("Не удалось скопировать. Попробуйте еще раз или используйте Chrome/Edge.");
+        }
     }
+
 
     // Hotkeys
     window.onkeydown = (e) => {
