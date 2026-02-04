@@ -2,22 +2,38 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Pro Blur Tool</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blur Tool Pro — Safari Ready</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
+        
+        /* Панель управления */
         .toolbar { display: flex; gap: 15px; background: #222; padding: 12px 20px; border-radius: 12px; margin-bottom: 20px; align-items: center; box-shadow: 0 8px 24px rgba(0,0,0,0.4); flex-wrap: wrap; }
         .group { display: flex; flex-direction: column; gap: 4px; border-right: 1px solid #444; padding-right: 15px; }
         .group:last-child { border: none; }
         label { font-size: 10px; text-transform: uppercase; color: #888; font-weight: bold; }
-        #wrapper { position: relative; border: 1px solid #333; line-height: 0; cursor: crosshair; user-select: none; background: #000; overflow: hidden; }
-        canvas { max-width: 90vw; max-height: 75vh; display: block; transition: filter 0.1s; }
+        
+        /* Холст и выделение */
+        #wrapper { position: relative; border: 1px solid #333; line-height: 0; cursor: crosshair; user-select: none; background: #000; overflow: hidden; border-radius: 4px; }
+        canvas { max-width: 90vw; max-height: 70vh; display: block; transition: filter 0.1s; }
         #selector { position: absolute; border: 1px solid #007aff; background: rgba(0, 122, 255, 0.2); pointer-events: none; display: none; box-sizing: border-box; z-index: 10; }
-        button { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; background: #007aff; color: white; font-weight: 500; font-size: 13px; }
+        
+        /* Кнопки и инпуты */
+        button { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; background: #007aff; color: white; font-weight: 500; font-size: 13px; transition: 0.2s; }
         button.sec { background: #444; }
         button.danger { background: #eb445a; }
-        button:active { opacity: 0.7; }
+        button:hover { opacity: 0.8; }
+        button:active { transform: scale(0.95); }
         select, input[type="range"] { background: #333; color: white; border: 1px solid #444; border-radius: 4px; padding: 4px; outline: none; }
+        
+        /* Вспышка при копировании */
         .flash { filter: brightness(1.5); }
+
+        /* Панель инструкции */
+        .info-panel { margin-top: 25px; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; max-width: 900px; width: 90vw; background: #1a1a1a; padding: 20px; border-radius: 12px; border: 1px solid #333; box-sizing: border-box; }
+        .info-item { font-size: 13px; color: #ccc; line-height: 1.6; }
+        .info-item strong { display: block; color: #007aff; margin-bottom: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .info-item span { background: #333; padding: 2px 6px; border-radius: 4px; color: #fff; font-family: monospace; border: 1px solid #444; }
     </style>
 </head>
 <body>
@@ -35,9 +51,9 @@
         <div class="group">
             <label>Эффект</label>
             <select id="blurType">
-                <option value="soft">Мягкий</option>
-                <option value="heavy">Сильный</option>
-                <option value="pixel">Пиксели</option>
+                <option value="soft">Мягкий блюр</option>
+                <option value="heavy">Сильное размытие</option>
+                <option value="pixel">Пикселизация</option>
             </select>
         </div>
 
@@ -50,7 +66,7 @@
             <label>Экспорт</label>
             <div style="display:flex; gap:5px">
                 <button id="copyBtn" class="sec" onclick="copyToClipboard()">Копировать</button>
-                <button class="sec" onclick="saveImage()">PNG</button>
+                <button class="sec" onclick="saveImage()">Скачать PNG</button>
                 <button class="danger" onclick="resetAll()">Сброс</button>
             </div>
         </div>
@@ -59,6 +75,25 @@
     <div id="wrapper">
         <canvas id="canvas"></canvas>
         <div id="selector"></div>
+    </div>
+
+    <div class="info-panel">
+        <div class="info-item">
+            <strong>Загрузка</strong> 
+            Нажми <span>Cmd+V</span> для вставки из буфера или выбери файл кнопкой «Открыть».
+        </div>
+        <div class="info-item">
+            <strong>Размытие</strong> 
+            Просто <span>выдели область</span> мышкой на изображении. Эффект применится мгновенно.
+        </div>
+        <div class="info-item">
+            <strong>Настройки</strong> 
+            Меняй тип и силу эффекта в меню сверху перед тем, как выделять область.
+        </div>
+        <div class="info-item">
+            <strong>Горячие клавиши</strong> 
+            Используй <span>Cmd+Z</span> для отмены последнего действия. Сброс очистит всё.
+        </div>
     </div>
 
 <script>
@@ -98,6 +133,7 @@
         }
     });
 
+    // Выделение
     wrapper.onmousedown = (e) => {
         if (canvas.width === 0) return;
         isDragging = true;
@@ -151,7 +187,6 @@
 
         ctx.imageSmoothingEnabled = (type !== 'pixel');
         tCtx.imageSmoothingEnabled = (type !== 'pixel');
-
         tCtx.drawImage(canvas, x, y, w, h, 0, 0, temp.width, temp.height);
 
         if (type === 'heavy') {
@@ -188,51 +223,51 @@
             img.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
-                history = [history[0]];
+                const firstState = history[0];
+                history = [firstState];
             };
             img.src = history[0];
         }
     }
 
+    // Экспорт
     function saveImage() {
         const link = document.createElement('a');
-        link.download = 'edited.png';
+        link.download = 'blurred_image.png';
         link.href = canvas.toDataURL();
         link.click();
     }
 
     async function copyToClipboard() {
         if (typeof ClipboardItem === "undefined") {
-            alert("Ваш браузер не поддерживает современный Clipboard API. Обновите Safari или используйте Chrome.");
+            alert("Clipboard API не поддерживается.");
             return;
         }
-
         try {
-            // Safari требует создания ClipboardItem сразу в обработчике клика
             const item = new ClipboardItem({
                 "image/png": new Promise((resolve) => {
                     canvas.toBlob((blob) => resolve(blob), "image/png");
                 })
             });
-
             await navigator.clipboard.write([item]);
             
-            // Эффект вспышки
             canvas.classList.add('flash');
-            setTimeout(() => canvas.classList.remove('flash'), 2000);
+            setTimeout(() => canvas.classList.remove('flash'), 300);
             
             const btn = document.getElementById('copyBtn');
             const old = btn.innerText;
             btn.innerText = "Скопировано! ✅";
             setTimeout(() => btn.innerText = old, 2000);
         } catch (err) {
-            console.error(err);
-            alert("Ошибка записи в буфер. Убедитесь, что сайт открыт через HTTPS.");
+            alert("Ошибка буфера. Нужен HTTPS.");
         }
     }
 
     window.onkeydown = (e) => {
-        if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo();
+        if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+            e.preventDefault();
+            undo();
+        }
     };
 </script>
 </body>
