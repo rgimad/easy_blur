@@ -58,7 +58,7 @@
         </div>
 
         <div class="group">
-            <label>Сила: <span id="val">50</span>%</label>
+            <label>Сила: <span id="val">-</span>%</label>
             <input type="range" id="strength" min="5" max="98" value="88" oninput="document.getElementById('val').innerText=this.value">
         </div>
 
@@ -269,6 +269,10 @@
             undo();
         }
     };
+
+    // Синхронизация текста с ползунком при загрузке страницы
+    document.getElementById('val').innerText = document.getElementById('strength').value;
+
 </script>
 </body>
 </html>
