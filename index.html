@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -10,13 +10,14 @@
         .group:last-child { border: none; }
         label { font-size: 10px; text-transform: uppercase; color: #888; font-weight: bold; }
         #wrapper { position: relative; border: 1px solid #333; line-height: 0; cursor: crosshair; user-select: none; background: #000; overflow: hidden; }
-        canvas { max-width: 90vw; max-height: 75vh; display: block; }
+        canvas { max-width: 90vw; max-height: 75vh; display: block; transition: filter 0.1s; }
         #selector { position: absolute; border: 1px solid #007aff; background: rgba(0, 122, 255, 0.2); pointer-events: none; display: none; box-sizing: border-box; z-index: 10; }
         button { padding: 8px 14px; border: none; border-radius: 6px; cursor: pointer; background: #007aff; color: white; font-weight: 500; font-size: 13px; }
         button.sec { background: #444; }
         button.danger { background: #eb445a; }
         button:active { opacity: 0.7; }
         select, input[type="range"] { background: #333; color: white; border: 1px solid #444; border-radius: 4px; padding: 4px; outline: none; }
+        .flash { filter: brightness(1.5); }
     </style>
 </head>
 <body>
@@ -26,7 +27,7 @@
             <label>Файл</label>
             <div style="display:flex; gap:5px">
                 <button onclick="document.getElementById('loader').click()">Открыть</button>
-                <button class="sec" onclick="undo()">Undo</button>
+                <button class="sec" onclick="undo()">Отмена</button>
             </div>
             <input type="file" id="loader" accept="image/*" style="display:none">
         </div>
@@ -48,7 +49,7 @@
         <div class="group">
             <label>Экспорт</label>
             <div style="display:flex; gap:5px">
-                <button class="sec" onclick="copyToClipboard()">Копировать</button>
+                <button id="copyBtn" class="sec" onclick="copyToClipboard()">Копировать</button>
                 <button class="sec" onclick="saveImage()">PNG</button>
                 <button class="danger" onclick="resetAll()">Сброс</button>
             </div>
@@ -66,18 +67,18 @@
     const wrapper = document.getElementById('wrapper');
     const selector = document.getElementById('selector');
     
-    let history = []; // Стек для отмены (Undo)
+    let history = []; 
     let isDragging = false;
     let startX, startY;
 
-    // --- Загрузка ---
     function initImage(dataUrl) {
         const img = new Image();
         img.onload = () => {
             canvas.width = img.width;
             canvas.height = img.height;
             ctx.drawImage(img, 0, 0);
-            saveHistory(); // Сохраняем начальное состояние
+            history = []; 
+            saveHistory();
         };
         img.src = dataUrl;
     }
@@ -97,14 +98,12 @@
         }
     });
 
-    // --- Логика выделения (Screen Space) ---
     wrapper.onmousedown = (e) => {
         if (canvas.width === 0) return;
         isDragging = true;
         const rect = wrapper.getBoundingClientRect();
         startX = e.clientX - rect.left;
         startY = e.clientY - rect.top;
-
         selector.style.display = 'block';
         selector.style.left = startX + 'px';
         selector.style.top = startY + 'px';
@@ -117,7 +116,6 @@
         const rect = wrapper.getBoundingClientRect();
         const curX = e.clientX - rect.left;
         const curY = e.clientY - rect.top;
-
         selector.style.left = Math.min(startX, curX) + 'px';
         selector.style.top = Math.min(startY, curY) + 'px';
         selector.style.width = Math.abs(curX - startX) + 'px';
@@ -127,42 +125,32 @@
     window.onmouseup = () => {
         if (!isDragging) return;
         isDragging = false;
-
         const rect = canvas.getBoundingClientRect();
         const scaleX = canvas.width / rect.width;
         const scaleY = canvas.height / rect.height;
-
         const x = parseFloat(selector.style.left) * scaleX;
         const y = parseFloat(selector.style.top) * scaleY;
         const w = parseFloat(selector.style.width) * scaleX;
         const h = parseFloat(selector.style.height) * scaleY;
 
         if (w > 2 && h > 2) {
-            saveHistory(); // Сохраняем перед изменением
+            saveHistory(); 
             applyEffect(x, y, w, h);
         }
         selector.style.display = 'none';
     };
 
-    // --- Эффекты ---
     function applyEffect(x, y, w, h) {
         const type = document.getElementById('blurType').value;
         const strength = parseInt(document.getElementById('strength').value);
         const scale = (101 - strength) / 100;
-
         const temp = document.createElement('canvas');
         temp.width = Math.max(1, w * scale);
         temp.height = Math.max(1, h * scale);
         const tCtx = temp.getContext('2d');
 
-        // Рендеринг
-        if (type === 'pixel') {
-            ctx.imageSmoothingEnabled = false;
-            tCtx.imageSmoothingEnabled = false;
-        } else {
-            ctx.imageSmoothingEnabled = true;
-            tCtx.imageSmoothingEnabled = true;
-        }
+        ctx.imageSmoothingEnabled = (type !== 'pixel');
+        tCtx.imageSmoothingEnabled = (type !== 'pixel');
 
         tCtx.drawImage(canvas, x, y, w, h, 0, 0, temp.width, temp.height);
 
@@ -177,22 +165,20 @@
         ctx.filter = 'none';
     }
 
-    // --- История и Кнопки ---
     function saveHistory() {
-        history.push(canvas.toDataURL());
+        history.push(canvas.toDataURL('image/png'));
         if (history.length > 20) history.shift();
     }
 
     function undo() {
         if (history.length > 1) {
-            history.pop(); // Удаляем текущее
-            const lastState = history[history.length - 1];
+            history.pop();
             const img = new Image();
             img.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
             };
-            img.src = lastState;
+            img.src = history[history.length - 1];
         }
     }
 
@@ -202,7 +188,7 @@
             img.onload = () => {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0);
-                history = [history[0]]; // Оставляем только первый кадр
+                history = [history[0]];
             };
             img.src = history[0];
         }
@@ -216,37 +202,35 @@
     }
 
     async function copyToClipboard() {
-        try {
-            // Проверка поддержки API
-            if (!typeof ClipboardItem !== "undefined") {
-                alert("Ваш браузер не поддерживает современный Clipboard API");
-                return;
-            }
+        if (typeof ClipboardItem === "undefined") {
+            alert("Ваш браузер не поддерживает современный Clipboard API. Обновите Safari или используйте Chrome.");
+            return;
+        }
 
-            // В Safari важно передавать Promise прямо в ClipboardItem, 
-            // чтобы не разрывать контекст пользовательского клика
+        try {
+            // Safari требует создания ClipboardItem сразу в обработчике клика
             const item = new ClipboardItem({
                 "image/png": new Promise((resolve) => {
                     canvas.toBlob((blob) => resolve(blob), "image/png");
-                }),
+                })
             });
 
             await navigator.clipboard.write([item]);
             
-            // Красивое уведомление на кнопке
-            const btn = event.currentTarget || document.activeElement;
-            const oldText = btn.innerText;
+            // Эффект вспышки
+            canvas.classList.add('flash');
+            setTimeout(() => canvas.classList.remove('flash'), 2000);
+            
+            const btn = document.getElementById('copyBtn');
+            const old = btn.innerText;
             btn.innerText = "Скопировано! ✅";
-            setTimeout(() => btn.innerText = oldText, 2000);
-
+            setTimeout(() => btn.innerText = old, 2000);
         } catch (err) {
-            console.error("Ошибка копирования:", err);
-            alert("Не удалось скопировать. Попробуйте еще раз или используйте Chrome/Edge.");
+            console.error(err);
+            alert("Ошибка записи в буфер. Убедитесь, что сайт открыт через HTTPS.");
         }
     }
 
-
-    // Hotkeys
     window.onkeydown = (e) => {
         if ((e.metaKey || e.ctrlKey) && e.key === 'z') undo();
     };
